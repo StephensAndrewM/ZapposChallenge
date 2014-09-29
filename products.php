@@ -36,23 +36,33 @@ class ZapposProductCombo {
 	// TODO Explain This
 	const ATTEMPTS = 5;
 
-	public static function getProductCombos($numProducts, $dollarAmount) {
+	public static function getProductCombo($numProducts, $dollarAmount) {
 
 		// Run the Algorithm a Set Number of Times
 		for ($i = 0; $i < self::ATTEMPTS; $i++) {
 
 			// Fetch Items and Add to Cumulative Listing
 			self::getItems();
-			//self::getItems();
 
-			// Then, Try Accumulation Method
-			//$accumulation = self::getAccumulation($numProducts, $dollarAmount);
+			// Find Combinations that Satisfy the Given Conditions
+			$combos = self::getCombos($numProducts, $dollarAmount);
 
-			self::getCombos($numProducts, $dollarAmount);
+			// And Then Find the Best One
+			$bestCombo = [];
+			$bestComboDiff = 999999;
+			foreach ($combos as $combo) {
+				$comboVal = 0;
+				foreach ($combo as $items) {
+					$comboVal += self::moneyToFloat($items->price);
+				}
+				if (abs($dollarAmount - $comboVal) < $bestComboDiff) { 
+					$bestCombo = $combo;
+				}
+			}
 
 		}
 
-		return self::$items;
+		return $bestCombo;
 
 	}
 
@@ -93,7 +103,7 @@ class ZapposProductCombo {
 
 		}
 
-		print_r($potentialCombos);
+		return $potentialCombos;
 
 	}
 
@@ -127,6 +137,9 @@ class ZapposProductCombo {
 
 }
 
-ZapposProductCombo::getProductCombos(5, 100);
+$numProducts = (isSet($_GET['numProducts'])) ? intval($_GET['numProducts']) : 5;
+$dollarAmount = (isSet($_GET['dollarAmount'])) ? intval($_GET['dollarAmount']) : 100;
+
+print_r(ZapposProductCombo::getProductCombo($numProducts, $dollarAmount));
 
 ?>
