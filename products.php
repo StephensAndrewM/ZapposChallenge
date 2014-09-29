@@ -1,5 +1,13 @@
 <?php
 
+/* 
+ * Andrew Stephens
+ * andrew@andrewmediaprod.com
+ * 
+ * Submission for Zappos Internship Coding Challenge
+ */
+
+
 /*
 
 When giving gifts, consumers usually keep in mind two variables - cost and 
@@ -29,14 +37,18 @@ class ZapposProductCombo {
 
 	// Keeps Track of Results Page
 	private static $page = 0;
-
 	// List of All Items Retreived from API
 	private static $items = [];
 
-	// TODO Explain This
+	// Used to Determine How Many Times to Run the Algorithm
+	// More Times = Higher Chance of Success, but Longer Run Time
 	const ATTEMPTS = 5;
 
 	public static function getProductCombo($numProducts, $dollarAmount) {
+
+		// Data Storage for Finding Best Combo
+		$bestCombo = [];
+		$bestComboDiff = 999999;
 
 		// Run the Algorithm a Set Number of Times
 		for ($i = 0; $i < self::ATTEMPTS; $i++) {
@@ -48,8 +60,6 @@ class ZapposProductCombo {
 			$combos = self::getCombos($numProducts, $dollarAmount);
 
 			// And Then Find the Best One
-			$bestCombo = [];
-			$bestComboDiff = 999999;
 			foreach ($combos as $combo) {
 				$comboVal = 0;
 				foreach ($combo as $items) {
@@ -66,27 +76,35 @@ class ZapposProductCombo {
 
 	}
 
+	// Convert a String with a Dollar Sign to a Floating Point Number
 	private static function moneyToFloat($moneyStr) {
 		return floatval(str_replace("$","",$moneyStr));
 	}
 
+	// Combo Finder
+	// Finds the average target price, then finds products that have that price.
+	// Loops several times, increasing the amount of variance allowed between the item's
+	//   price and the average price.
 	private static function getCombos($numProducts, $dollarAmount) {
 
 		$dollarsPerProduct = $dollarAmount/$numProducts;
 		$deviance = 0;
 
 		$potentialCombos = [];
-		$k = 0;
-		while($k < self::ATTEMPTS) {		// TODO Change This
+
+		// Run Multiple Times to Increased Likelihood of Success
+		for ($k = 0; $k < self::ATTEMPTS; $k++) {
 
 			$itemsInRange = [];
 
+			// Check if Item's Price is Close Enough
 			foreach(self::$items as $item) {
 				if (abs(self::moneyToFloat($item->price) - $dollarsPerProduct) < $deviance) {
 					$itemsInRange[] = $item;
 				}
 			}
 
+			// Group Items Together
 			while(sizeof($itemsInRange) > ($numProducts-1)) {
 
 				$newCombo = [];
@@ -98,8 +116,8 @@ class ZapposProductCombo {
 
 			}
 
+			// Allow More Variation on Next Cycle
 			$deviance += 2;
-			$k++;
 
 		}
 
@@ -107,6 +125,9 @@ class ZapposProductCombo {
 
 	}
 
+	// Item Getter
+	// Calls the Zappos API and fetches item data.
+	// Appends to a global array of items.
 	private static function getItems() {
 
 		self::$page++;
@@ -114,7 +135,8 @@ class ZapposProductCombo {
 		$zapposApiUrl = 'http://api.zappos.com/Search?key='.ZAPPOS_API_KEY;
 
 		$params = array(
-			'limit' => 100
+			'limit' => 100,
+			'page' => self::$page
 		);
 		$paramString = '&'.http_build_query($params);
 
@@ -130,6 +152,8 @@ class ZapposProductCombo {
 		curl_close($ch);
 
 		$items = json_decode(stripslashes($response));
+		
+		if ($items == null) { return; }
 
 		self::$items = array_merge(self::$items, $items->results);
 
@@ -137,6 +161,7 @@ class ZapposProductCombo {
 
 }
 
+// Get Params
 $numProducts = (isSet($_GET['numProducts'])) ? intval($_GET['numProducts']) : 5;
 $dollarAmount = (isSet($_GET['dollarAmount'])) ? intval($_GET['dollarAmount']) : 100;
 
