@@ -28,28 +28,78 @@ if (!defined('ZAPPOS_API_KEY')) {
 class ZapposProductCombo {
 
 	// Keeps Track of Results Page
-	private static $page;
+	private static $page = 0;
 
 	// List of All Items Retreived from API
-	private static $items;
+	private static $items = [];
 
-	public static function getProductCombos() {
+	// TODO Explain This
+	const ATTEMPTS = 5;
 
-		self::$page = 0;
-		self::$items = [];
+	public static function getProductCombos($numProducts, $dollarAmount) {
 
-		self::getItems();
-		self::getItems();
+		// Run the Algorithm a Set Number of Times
+		for ($i = 0; $i < self::ATTEMPTS; $i++) {
+
+			// Fetch Items and Add to Cumulative Listing
+			self::getItems();
+			//self::getItems();
+
+			// Then, Try Accumulation Method
+			//$accumulation = self::getAccumulation($numProducts, $dollarAmount);
+
+			self::getCombos($numProducts, $dollarAmount);
+
+		}
 
 		return self::$items;
 
 	}
 
-	public static function getItems() {
+	private static function moneyToFloat($moneyStr) {
+		return floatval(str_replace("$","",$moneyStr));
+	}
+
+	private static function getCombos($numProducts, $dollarAmount) {
+
+		$dollarsPerProduct = $dollarAmount/$numProducts;
+		$deviance = 0;
+
+		$potentialCombos = [];
+		$k = 0;
+		while($k < self::ATTEMPTS) {		// TODO Change This
+
+			$itemsInRange = [];
+
+			foreach(self::$items as $item) {
+				if (abs(self::moneyToFloat($item->price) - $dollarsPerProduct) < $deviance) {
+					$itemsInRange[] = $item;
+				}
+			}
+
+			while(sizeof($itemsInRange) > ($numProducts-1)) {
+
+				$newCombo = [];
+				for($i = 0; $i < $numProducts; $i++) {
+					$item = array_pop($itemsInRange);
+					$newCombo[] = $item;
+				}
+				$potentialCombos[] = $newCombo;
+
+			}
+
+			$deviance += 2;
+			$k++;
+
+		}
+
+		print_r($potentialCombos);
+
+	}
+
+	private static function getItems() {
 
 		self::$page++;
-
-		// TODO Check Total Result Count
 
 		$zapposApiUrl = 'http://api.zappos.com/Search?key='.ZAPPOS_API_KEY;
 
@@ -61,19 +111,22 @@ class ZapposProductCombo {
 		// Get the Data
 		$ch = curl_init($zapposApiUrl.$paramString);
 		curl_setopt($ch, CURLOPT_HEADER, 0);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 		$response = curl_exec($ch);
+		if(curl_errno($ch)) {
+			echo 'Curl error: ' . curl_error($ch);	
+			return;
+		}
 		curl_close($ch);
-		// TODO Check Errors
 
 		$items = json_decode(stripslashes($response));
 
-		var_dump(self::$items);
-		self::$items = array_merge(self::$items, $items['results']);
+		self::$items = array_merge(self::$items, $items->results);
 
 	}
 
 }
 
-print_r(ZapposProductCombo::getProductCombos());
+ZapposProductCombo::getProductCombos(5, 100);
 
 ?>
